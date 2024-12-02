@@ -1,0 +1,6 @@
+- dataset with 9 attributes describing water quality and 10th column saying if it is drinkable
+- check data quality
+- split into train, val, test
+- train (optuna determines which model is best (RandomForest or Regression or ...)) for predicting potability and softmax likelihood
+- rank importance of attributes regarding potability
+- python script asks user to provide information about water in free text format --> OpenAI API returns a hard-coded format --> data is sent to model --> model returns potability, confidence, (reason??? SHAP) --> OpenAI API uses this data to write 3 sentences to the user and makes some jerky comment "stay safe and don't sip the drip, buddy" or sth like that
