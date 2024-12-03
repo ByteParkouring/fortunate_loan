@@ -79,11 +79,15 @@ if prompt := st.chat_input("Provide worker information:"):
     )
 
     # Generate GPT explanation
-    response = client.completions.create(
-        model=st.session_state["openai_model"],
-        prompt=explanation_prompt,
+    response = client.chat.completions.create(
+        model=st.session_state["openai_model"],  # e.g., "gpt-3.5-turbo" or "gpt-4"
+        messages=[
+            {"role": "system", "content": "You are an assistant helping to explain model predictions."},
+            {"role": "user", "content": explanation_prompt},
+        ],
         max_tokens=150
-    ).choices[0].text
+    )
+
 
 
     with st.chat_message("assistant"):
