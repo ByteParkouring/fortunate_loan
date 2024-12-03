@@ -1,9 +1,10 @@
 import pandas as pd
 import pickle
 import shap
-from openai import OpenAI
+import openai
 import streamlit as st
 import keyring
+import re
 
 # Load your model and dataset
 with open("fortunate_loan_model_gpu.pkl", "rb") as file:
@@ -11,12 +12,37 @@ with open("fortunate_loan_model_gpu.pkl", "rb") as file:
 
 data = pd.read_csv("loan_data_preprocessed.csv")
 
-# Calculate average values for each attribute in case of missing user input
-average_values = data.mean().to_dict()
+# Calculate average or most common values for each attribute
+default_values = {
+    'person_age': data['person_age'].mean(),
+    'person_gender': data['person_gender'].mode()[0],  # Assuming 0: male, 1: female
+    'person_education': data['person_education'].mode()[0],  # Ordinal mapping
+    'person_income': data['person_income'].mean(),
+    'person_emp_exp': data['person_emp_exp'].mean(),
+    'person_home_ownership': data['person_home_ownership'].mode()[0],  # Ordinal mapping
+    'loan_amnt': data['loan_amnt'].mean(),
+    'loan_int_rate': data['loan_int_rate'].mean(),
+    'loan_percent_income': data['loan_percent_income'].mean(),
+    'cb_person_cred_hist_length': data['cb_person_cred_hist_length'].mean(),
+    'credit_score': data['credit_score'].mean(),
+    'previous_loan_defaults_on_file': data['previous_loan_defaults_on_file'].mode()[0],  # 0: No, 1: Yes
+    'loan_intent_DEBTCONSOLIDATION': 0,
+    'loan_intent_EDUCATION': 0,
+    'loan_intent_HOMEIMPROVEMENT': 0,
+    'loan_intent_MEDICAL': 0,
+    'loan_intent_PERSONAL': 0,
+    'loan_intent_VENTURE': 0
+}
+
+# Set the most common loan intent to 1
+most_common_intent = data[['loan_intent_DEBTCONSOLIDATION', 'loan_intent_EDUCATION',
+                           'loan_intent_HOMEIMPROVEMENT', 'loan_intent_MEDICAL',
+                           'loan_intent_PERSONAL', 'loan_intent_VENTURE']].sum().idxmax()
+default_values[most_common_intent] = 1
 
 # Set up OpenAI API
 api_key = keyring.get_password("openai_api", "key_a")
-client = OpenAI(api_key=api_key)
+openai.api_key = api_key
 
 # Streamlit UI
 st.title("Worker Loan Approval Prediction & Analysis")
@@ -30,7 +56,7 @@ if "messages" not in st.session_state:
 def parse_user_input(user_input):
     # Simple text parsing logic to extract values for the known features
     extracted_features = {}
-    for feature in average_values.keys():
+    for feature in default_values.keys():
         if feature.lower() in user_input.lower():
             try:
                 # Extract value from user input
@@ -39,10 +65,10 @@ def parse_user_input(user_input):
             except (IndexError, ValueError):
                 continue
 
-    # Use average values for missing features
-    for feature, avg_value in average_values.items():
+    # Use default values for missing features
+    for feature, default_value in default_values.items():
         if feature not in extracted_features:
-            extracted_features[feature] = avg_value
+            extracted_features[feature] = default_value
 
     return extracted_features
 
@@ -69,6 +95,8 @@ if prompt := st.chat_input("Provide worker information:"):
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(features_df)
 
+    print(shap_values)
+
     # Analyze prediction and SHAP values
     explanation_prompt = (
         f"Based on the provided information and the internal model analysis, "
@@ -79,18 +107,21 @@ if prompt := st.chat_input("Provide worker information:"):
     )
 
     # Generate GPT explanation
-    response = client.chat.completions.create(
-        model=st.session_state["openai_model"],  # e.g., "gpt-3.5-turbo" or "gpt-4"
+    response = openai.chat.completions.create(
+        model=st.session_state["openai_model"],  # e.g., "gpt-4o-mini"
         messages=[
             {"role": "system", "content": "You are an assistant helping to explain model predictions."},
             {"role": "user", "content": explanation_prompt},
         ],
-        max_tokens=150
+        max_tokens=1000
     )
 
+    assistant_message = response.choices[0].message.content
 
+    # Format the content properly for output
+    formatted_content = assistant_message.strip().replace("\\n", "\n")
 
     with st.chat_message("assistant"):
-        st.markdown(response)
+        st.markdown(formatted_content)
 
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    st.session_state.messages.append({"role": "assistant", "content": formatted_content})
