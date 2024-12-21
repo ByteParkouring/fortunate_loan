@@ -1,7 +1,5 @@
-- create chatgpt prompt containing .csv format and median values of .csv and instruction to format user input for model usage
-- forward chatgpt response to model
-- calculate SHAP
-- forward prediction and shap results to chat gpt and instruction to make a sarcastic explanation and be ready for next query
+open changes todo
 
-if an users string does not contain any model-relevant data, say "Please provide relevant data" and nothing else
-(if chat gpt response != "Please provide relevant data": call model)
+- explanation should differentiate between values taken from user and values provided by default average --> prompt for explanation should provide default json and final json so gpt can look at differences to determine which one come from user 
+- more sarcasm and less numerical values for output because user does not care about shap values, just results and relative importance of values
+- plot shap diagrams inside the chat 
