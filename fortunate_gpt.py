@@ -5,7 +5,7 @@ import openai
 import streamlit as st
 import keyring
 import re
-
+import matplotlib.pyplot as plt  # <-- Added import for plotting
 
 def extract_json_content(input_string):
     # Use regular expression to find the first '{' and last '}'
@@ -82,8 +82,14 @@ if prompt := st.chat_input("Provide worker information:"):
     gpt_response = openai.chat.completions.create(
         model=st.session_state["openai_model"],
         messages=[
-            {"role": "system", "content": "You are an assistant creating structured input for a machine learning model."},
-            {"role": "user", "content": gpt_prompt}
+            {
+                "role": "system",
+                "content": "You are an assistant creating structured input for a machine learning model."
+            },
+            {
+                "role": "user",
+                "content": gpt_prompt
+            }
         ],
         max_tokens=500
     )
@@ -111,22 +117,40 @@ if prompt := st.chat_input("Provide worker information:"):
     shap_summary = {
         key: shap_values[0][i] for i, key in enumerate(features.columns)
     }
-
     print(f"shap summary: {shap_summary}")
 
-    # Prepare GPT explanation prompt
-    explanation_prompt = (
-        f"The loan prediction was {'approved' if prediction == 1 else 'not approved'}. "
-        f"SHAP values indicate the impact of each feature on this decision: {shap_summary}. "
-        f"Provide a concise explanation of the prediction, focusing on the features with the highest positive "
-        f"and negative impacts."
-    )
+    # ---- NEW: Generate a SHAP plot and display in Streamlit ----
+    fig, ax = plt.subplots()
+    # By default, shap.summary_plot shows many details in a separate window.
+    # We use show=False so we can display it inline in Streamlit.
+    shap.summary_plot(shap_values, features, plot_type="bar", show=False)
+    st.pyplot(fig)
+    # ---- END NEW ----
+
+    # ---- NEW: Prepare GPT explanation prompt that includes two JSON objects (default vs final), adds sarcasm, and excludes numbers ----
+    explanation_prompt = f"""
+The loan prediction was {"approved" if prediction == 1 else "not approved"}. 
+Below you have two JSON objects: 
+1) default_initial_json: {default_values}
+2) final_user_json: {features.to_dict(orient='records')[0]}
+
+Provide a sarcastic, but short concise explanation of how the final decision is influenced by the features that deviate from the default data, 
+ignoring specific numeric values. Focus on the relative importance of user-provided features vs. those left at default. 
+Do not include any numeric values in the explanation. Also do not talk about "JSON" or other technical datastructures. Just tell the end user what he is interested in.
+    """.strip()
+    # ---- END NEW ----
 
     gpt_explanation_response = openai.chat.completions.create(
         model=st.session_state["openai_model"],
         messages=[
-            {"role": "system", "content": "You are an assistant explaining model predictions."},
-            {"role": "user", "content": explanation_prompt}
+            {
+                "role": "system",
+                "content": "You are an assistant explaining model predictions."
+            },
+            {
+                "role": "user",
+                "content": explanation_prompt
+            }
         ],
         max_tokens=500
     )
