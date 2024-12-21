@@ -43,9 +43,16 @@ default_values = {
 }
 
 # Set the most common loan intent to 1
-most_common_intent = data[['loan_intent_DEBTCONSOLIDATION', 'loan_intent_EDUCATION',
-                           'loan_intent_HOMEIMPROVEMENT', 'loan_intent_MEDICAL',
-                           'loan_intent_PERSONAL', 'loan_intent_VENTURE']].sum().idxmax()
+most_common_intent = data[
+    [
+        'loan_intent_DEBTCONSOLIDATION',
+        'loan_intent_EDUCATION',
+        'loan_intent_HOMEIMPROVEMENT',
+        'loan_intent_MEDICAL',
+        'loan_intent_PERSONAL',
+        'loan_intent_VENTURE'
+    ]
+].sum().idxmax()
 default_values[most_common_intent] = 1
 
 # Set up OpenAI API
@@ -73,9 +80,17 @@ if prompt := st.chat_input("Provide worker information:"):
 
     # GPT processes the user input to generate a complete dataframe
     gpt_prompt = (
-        f"Given the following default values for a loan approval dataset: {default_values}, "
-        f"and the user's input: '{prompt}', generate a JSON-formatted dataframe with all keys "
-        f"from the default values, replacing default values with any applicable values from the user input. The values need to be numerical (no strings)."
+        f"Given the following default values for a loan approval dataset: {default_values}, and the user's input: '{prompt}', "
+        f"generate a JSON-formatted dataframe with all keys from the default values, replacing default values with any applicable values from the user input. "
+        f"The values need to be numerical (no strings). "
+        f"For 'person_gender': 0 means 'male' and 1 means 'female'. "
+        f"For 'person_education': 0 means 'High School', 1 means 'Associate', 2 means 'Bachelor', 3 means 'Master', 4 means 'Doctorate'. "
+        f"For 'person_home_ownership': 0 means 'RENT', 1 means 'MORTGAGE', 2 means 'OWN'. "
+        f"For 'previous_loan_defaults_on_file': 0 means 'No' and 1 means 'Yes'. "
+        f"The following columns are one-hot encoded: 'loan_intent_DEBTCONSOLIDATION', 'loan_intent_EDUCATION', 'loan_intent_HOMEIMPROVEMENT', 'loan_intent_MEDICAL', 'loan_intent_PERSONAL', 'loan_intent_VENTURE'. "
+        f"If the user attempts to set more than one loan intent key to 1 at once, correct it so that only one key is set to 1. "
+        f"Also note that 'person_age' is measured in years, 'person_income' in dollars per year, 'person_emp_exp' in years, 'loan_amnt' in dollars, 'loan_int_rate' in percent, "
+        f"'cb_person_cred_hist_length' in years. If the user provides any of these in different units, convert them to the correct units before placing them in the JSON."
         f"Ensure the format matches: {{'key1': value1, 'key2': value2, ...}}."
     )
 
@@ -91,7 +106,7 @@ if prompt := st.chat_input("Provide worker information:"):
                 "content": gpt_prompt
             }
         ],
-        max_tokens=500
+        max_tokens=1000
     )
 
     assistant_message = gpt_response.choices[0].message.content
@@ -121,8 +136,6 @@ if prompt := st.chat_input("Provide worker information:"):
 
     # ---- NEW: Generate a SHAP plot and display in Streamlit ----
     fig, ax = plt.subplots()
-    # By default, shap.summary_plot shows many details in a separate window.
-    # We use show=False so we can display it inline in Streamlit.
     shap.summary_plot(shap_values, features, plot_type="bar", show=False)
     st.pyplot(fig)
     # ---- END NEW ----
@@ -137,6 +150,16 @@ Below you have two JSON objects:
 Provide a sarcastic, but short concise explanation of how the final decision is influenced by the features that deviate from the default data, 
 ignoring specific numeric values. Focus on the relative importance of user-provided features vs. those left at default. 
 Do not include any numeric values in the explanation. Also do not talk about "JSON" or other technical datastructures. Just tell the end user what he is interested in.
+
+Additional context:
+- 'person_gender': 0 means 'male' and 1 means 'female'
+- 'person_education': 0 means 'High School', 1 means 'Associate', 2 means 'Bachelor', 3 means 'Master', 4 means 'Doctorate'
+- 'person_home_ownership': 0 means 'RENT', 1 means 'MORTGAGE', 2 means 'OWN'
+- 'previous_loan_defaults_on_file': 0 means 'No' and 1 means 'Yes'
+- The following columns are one-hot encoded: 'loan_intent_DEBTCONSOLIDATION', 'loan_intent_EDUCATION', 'loan_intent_HOMEIMPROVEMENT', 'loan_intent_MEDICAL', 'loan_intent_PERSONAL', 'loan_intent_VENTURE'
+- 'person_age' is measured in years, 'person_income' in dollars per year, 'person_emp_exp' in years, 'loan_amnt' in dollars, 'loan_int_rate' in percent, 'cb_person_cred_hist_length' in years.
+
+Make sure you do not mention explicit numeric values in your explanation, but do describe them in relative terms.
     """.strip()
     # ---- END NEW ----
 
@@ -152,7 +175,7 @@ Do not include any numeric values in the explanation. Also do not talk about "JS
                 "content": explanation_prompt
             }
         ],
-        max_tokens=500
+        max_tokens=1000
     )
 
     explanation_message = gpt_explanation_response.choices[0].message.content.strip()
