@@ -7,6 +7,7 @@ import keyring
 import re
 import matplotlib.pyplot as plt
 import numpy as np  # <-- Needed for sorting/indexing
+import matplotlib.patches as mpatches
 
 def extract_json_content(input_string):
     # Use regular expression to find the first '{' and last '}'
@@ -89,7 +90,7 @@ if prompt := st.chat_input("Provide worker information:"):
         f"For 'person_home_ownership': 0 means 'RENT', 1 means 'MORTGAGE', 2 means 'OWN'. "
         f"For 'previous_loan_defaults_on_file': 0 means 'No' and 1 means 'Yes'. "
         f"The following columns are one-hot encoded: 'loan_intent_DEBTCONSOLIDATION', 'loan_intent_EDUCATION', 'loan_intent_HOMEIMPROVEMENT', 'loan_intent_MEDICAL', 'loan_intent_PERSONAL', 'loan_intent_VENTURE'. "
-        f"If the user attempts to set more than one loan intent key to 1 at once, correct it so that only one key is set to 1. "
+        f"If the user attempts to set more than one loan intent key to 1 at once, correct it so that only one key is set to 1. If the user provides information on education or gender and the like which are out of scope of the possible values specified above, then don't take the user-specified value, but instead take the closest value possible (e.g. High School is the closest possible value if the user claims to have Middle School degree.) or keep the initial default value if there is no closest alternative (e.g. neither male nor female are closer to user-provided input 'agender')"
         f"Also note that 'person_age' is measured in years, 'person_income' in dollars per year, 'person_emp_exp' in years, 'loan_amnt' in dollars, 'loan_int_rate' in percent, "
         f"'cb_person_cred_hist_length' in years. If the user provides any of these in different units, convert them to the correct units before placing them in the JSON."
         f"Ensure the format matches: {{'key1': value1, 'key2': value2, ...}}."
@@ -145,7 +146,7 @@ if prompt := st.chat_input("Provide worker information:"):
     for col in sorted_cols:
         default_val = default_values[col]
         user_val = features[col].iloc[0]
-        
+
         # Attempt float comparison if both are numeric; fallback to string comparison otherwise
         try:
             if float(user_val) == float(default_val):
@@ -158,6 +159,7 @@ if prompt := st.chat_input("Provide worker information:"):
             else:
                 bar_colors.append('blue')
 
+    # Create the plot
     fig, ax = plt.subplots()
     y_pos = np.arange(len(sorted_cols))
     ax.barh(y_pos, sorted_shap_vals, color=bar_colors)
@@ -166,10 +168,16 @@ if prompt := st.chat_input("Provide worker information:"):
     ax.invert_yaxis()
     ax.set_xlabel("SHAP Value")
     ax.set_title("Feature Importance (Single Prediction)")
-    st.pyplot(fig)
 
-    # Caption explaining the color scheme
-    st.caption("Blue bars: user-provided (changed) values, Red bars: default values.")
+    # Create legend patches
+    blue_patch = mpatches.Patch(color='blue', label='User-provided (changed)')
+    red_patch = mpatches.Patch(color='red', label='Default values')
+
+    # Add legend to the plot
+    ax.legend(handles=[blue_patch, red_patch], loc='best')
+
+    # Render the figure in Streamlit
+    st.pyplot(fig)
 
     # ---- END NEW ----
 
@@ -180,9 +188,9 @@ Below you have two JSON objects:
 1) default_initial_json: {default_values}
 2) final_user_json: {features.to_dict(orient='records')[0]}
 
-Provide a sarcastic, but short concise explanation of how the final decision is influenced by the features that deviate from the default data, 
-ignoring specific numeric values. Focus on the relative importance of user-provided features vs. those left at default. 
-Do not include any numeric values in the explanation. Also do not talk about "JSON" or other technical datastructures. Just tell the end user what he is interested in.
+You are talking directly to the user. Provide a simple, short and clear explanation of how the final decision is influenced by the features, 
+ignoring specific numeric values. Focus on three things: 1. Focus on positive vs negative impacts of features. 2. Focus on user-provided vs default values for features. 3. Focus on the most impactful features (i.e. those with the most extreme SHAP values). Do not write separate paragraphs for these three things, but follow a combined approach. 
+Do not include any numeric values in the explanation. You may use phrases like "... half as influential ..." or "... three times as significant as ..." and the like though. Also do not talk about "JSON", "SHAP" or other technical datastructures. Just tell the end user what he is interested in. Do not speak in past tense, but in future.
 
 Additional context:
 - 'person_gender': 0 means 'male' and 1 means 'female'
@@ -192,7 +200,15 @@ Additional context:
 - The following columns are one-hot encoded: 'loan_intent_DEBTCONSOLIDATION', 'loan_intent_EDUCATION', 'loan_intent_HOMEIMPROVEMENT', 'loan_intent_MEDICAL', 'loan_intent_PERSONAL', 'loan_intent_VENTURE'
 - 'person_age' is measured in years, 'person_income' in dollars per year, 'person_emp_exp' in years, 'loan_amnt' in dollars, 'loan_int_rate' in percent, 'cb_person_cred_hist_length' in years.
 
-Make sure you do not mention explicit numeric values in your explanation, but do describe them in relative terms.
+Do not write sentences like "Even though you shared that you have no previous defaults, the system defaults to assuming a negative past due to the misalignment with your overall profile.". Your answer must be fully based on the final_user_json. default_initial_json only exists so you can find out which features were user provided and which not.
+
+Finish your explanation with a sarcastic line. Here are two example responses which you should orient yourself towards while keeping in mind that your results might deviate:
+
+1. I sadly have to tell you that your loan application will not be approved. The data you provided (credit score, gender, etc.) had a positive influence on the decision making process. However, these attributes are way less important than the history of previous loan defaults. Since you did not provide any information for this particular feature, we have no choice but to refer to our data from the internal database, meaning that we assume that you had previous loan defaults. This single feature was enough to assume that your loan application will most likely not be approved. Mind you provide more good news about yourself the next time, will ya?
+
+2. Well done, you managed to pack lots of horrible indicators in your loan application, as you lack any kind of work experience with a credit score hitting the rock bottom. The bank is probably laughing about the fact that someone like you has a Master's degree. Nonetheless, the immense interest rate of 68.3% which you are willing to pay managed to weigh out all those negative indicators you provided. Furthermore, our database assumes your age to be 41, adding a slight bonus in the decision making process, since people with life experience, but young enough to have the drive to achieve much in the coming years, are generally speaking more trustworthy. Have fun with your loan, but stay responsible. You don't want to ruin your reputation any further than already, do you?
+
+Use the rules, context data and text examples I provided you with to write a loan approval status application to the end user. 
     """.strip()
     # ---- END NEW ----
 
@@ -208,7 +224,7 @@ Make sure you do not mention explicit numeric values in your explanation, but do
                 "content": explanation_prompt
             }
         ],
-        max_tokens=1000
+        max_tokens=1500
     )
 
     explanation_message = gpt_explanation_response.choices[0].message.content.strip()

@@ -2,6 +2,8 @@ open changes todo
 
 - do not simply take default values combined with user values --> if the user says he is 3 years old, it makes no sense to keep default annual income of 80 000 dollars. Therefore proceed differently: 1. Tell GPT to just return the JSON key-value pairs of keys that have user-provided values. 2. The program should compute new mean / default values for all other attributes based on user-provided values and the internal .csv database. 3. The resulting new dataframe is to be used for prediction.
 
-- regarding shap plot: keys whose values were not provided by values should have red bars instead of blue bars. A caption should be inserted to shortly state what the colors blue and red stand for.
+"I am 18 years old and I need the loan for medicine. I have no previous loan defaults and 1 year of work experience." (negative result)
 
-"I am 55 years old and I have 30 years work experience. I have a pHd and an own house. I am married and I never had previous loan defaults. My interest rate is 1%. I earn 9999999 dollar per year. My credit score is 800"
+"I am 55 years old and I have 30 years work experience. I have a pHd and an own house. I am married and I never had previous loan defaults. My interest rate is 1%. I earn 9999999 dollar per year. My credit score is 800" (positive result)
+
+"I am 36 months old. I need the loan for education and for medicine. I am agender and my pronouns are they/them. " (conflicting data)
