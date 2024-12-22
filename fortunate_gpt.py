@@ -67,7 +67,9 @@ if "openai_model" not in st.session_state:
     st.session_state["openai_model"] = "gpt-4o-mini"
 
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Hey, I can predict whether your bank loan application will be approved! :)\n\nPlease provide me with data relevant for this purpose. Our model can deal with data about the interest rate, your credit score, work experience and many more features. Simply paste your data in the form you wish. It does not have to be complete. We will take care of the rest!"}
+    ]
 
 # Display previous messages
 for message in st.session_state.messages:
