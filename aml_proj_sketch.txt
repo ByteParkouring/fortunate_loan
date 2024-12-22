@@ -1,6 +1,14 @@
-open changes todo
+open changes todo:
 
 - do not simply take default values combined with user values --> if the user says he is 3 years old, it makes no sense to keep default annual income of 80 000 dollars. Therefore proceed differently: 1. Tell GPT to just return the JSON key-value pairs of keys that have user-provided values. 2. The program should compute new mean / default values for all other attributes based on user-provided values and the internal .csv database. 3. The resulting new dataframe is to be used for prediction.
+
+- create nice documentation
+
+- create powerpoint presentation
+
+- research deeply about SHAP
+
+Prompts:
 
 "I am 18 years old and I need the loan for medicine. I have no previous loan defaults and 1 year of work experience." (negative result)
 
