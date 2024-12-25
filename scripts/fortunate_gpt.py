@@ -17,10 +17,10 @@ def extract_json_content(input_string):
     return None
 
 # Load model and dataset
-with open("fortunate_loan_model_gpu.pkl", "rb") as file:
+with open("models/fortunate_loan_model_gpu.pkl", "rb") as file:
     model = pickle.load(file)
 
-data = pd.read_csv("loan_data_preprocessed.csv")
+data = pd.read_csv("data/loan_data_preprocessed.csv")
 
 # Calculate average or most common values for each attribute
 default_values = {
